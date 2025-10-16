@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<title>English Dictation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; background-color: #f5f6fa; margin: 0; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 25px; color: #333; }
+
+  .audio-select-bar { text-align: center; margin-bottom: 18px; }
+  .audio-select-label { font-weight: 600; margin-right: 8px; color: #333; }
+  .audio-select-dropdown {
+    padding: 6px 10px; border-radius: 8px; font-size: 1em; border: 1px solid #ccc;
+    background-color: #fafafa; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .audio-select-dropdown:focus { outline: none; border-color: #888; box-shadow: 0 0 4px rgba(0,0,0,0.15); }
+
+  .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+
+  .audio-card {
+    background: #fff; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    padding: 18px; display: flex; flex-direction: column; gap: 12px;
+    transition: all 0.25s ease; opacity: 1; transform: scale(1);
+  }
+  .audio-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.15); }
+
+  .card-title { font-weight: bold; font-size: 1.1em; text-align: center; color: #222; }
+  audio { width: 100%; }
+
+  .segment-progress { position: relative; width: 100%; height: 6px; background-color: #eee; border-radius: 3px; overflow: hidden; margin-top: 4px; display: none; }
+  .segment-progress .bar { position: absolute; height: 100%; width: 0%; background-color: #4caf50; transition: width 0.1s linear; }
+
+  .time-label { text-align: right; font-size: 0.85em; color: #555; font-family: monospace; opacity: 0; transition: opacity 0.5s ease; }
+  .time-label.visible { opacity: 1; }
+
+  .control-group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+  select, button, input[type="number"], input[type="file"] { font-size: .95em; padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fafafa; }
+  button { cursor: pointer; background-color: #e9e9e9; transition: background 0.2s, transform 0.1s, opacity 0.3s; }
+  button:hover:not(:disabled) { background-color: #dcdcdc; }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+  .btn-rewind { background-color: #ffe6cc; border-color: #ffcc99; }
+  .btn-rewind:hover:not(:disabled) { background-color: #ffd9b3; }
+
+  .pause-list { list-style: none; padding-left: 0; margin: 6px 0; max-height: 150px; overflow-y: auto; border-top: 1px dashed #ddd; padding-top: 6px; }
+
+  .segment-group { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+  .list-title { font-weight: bold; font-size: 0.9em; color: #444; text-align: left; margin-top: 10px; cursor: pointer; user-select: none; }
+  .list-title::before { content: "▶ "; transition: transform 0.2s; }
+  .list-title.expanded::before { content: "▼ "; }
+
+  .collapse-content { display: none; transition: max-height 0.3s ease; overflow: hidden; }
+  .collapse-content.show { display: block; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(60, 60, 60, 0.9); color: #fff; padding: 8px 14px;
+    border-radius: 6px; font-size: 0.9em; opacity: 0; transition: opacity 0.5s ease;
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 10px; }
+    .audio-card { padding: 14px; }
+    .control-group { flex-direction: column; }
+    select, button, input { width: 100%; }
+    .audio-select-bar { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .audio-select-dropdown { width: 90%; }
+  }
+</style>
+</head>
+<body>
+<h1>P3 English Dictation</h1>
+
+<div class="audio-select-bar">
+  <label for="audioSelect" class="audio-select-label">Select Audio:</label>
+  <select id="audioSelect" class="audio-select-dropdown">
+    <option value="all">Show All</option>
+  </select>
+</div>
+
+<div class="card-container" id="audioCardContainer"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const audioList = [
+  { name: "The Horse and The Bell", url: "mp3LessonText/The-Horse-And-The-Bell-Dictation.mp3", defaultSegments: [13.3, 27.8, 43.3, 53.6, 65.5],
+    text: `
+    <p>A good king ruled over a town in Italy. He would not allow anyone to be cruel or unfair. In the marketplace stood a tall tower with a bell. If someone suffered a cruel thing, they could ring the bell.</p>
+    <p>For many years, no one rang it. Children and sick people were cared for. Then a soldier struck his old horse and sent him away down the dusty road. The horse wandered, feeding from hedges by the roadside.</p>
+    <p>In wintertime, snow covered the ground. He grew thinner, and his mane became ragged. In spring, people were glad and tied flowers to their doorways. They held a feast in the sunshine in the marketplace to welcome the spring.</p>
+    <p>The starving horse limped up to the bell tower and went underneath the arch. He tugged at the leaves tied to the bell rope. Ding-dong! Everyone gasped.</p>
+    <p>The king found the miserable horse and was shocked. He looked sternly at the soldier, who admitted he had been unkind and that he still owned the horse. The king gave him a second chance.</p>
+    <p>The soldier took the horse home, fed him well, and gave him a warm stable for the rest of his days. He showed everyone that he had truly mended his ways.</p>
+    `
+ },
+];
+
+const MIN_PLAY_DURATION_IN_SEC = 2.5;
+const container = document.getElementById("audioCardContainer");
+const audioSelect = document.getElementById("audioSelect");
+const toast = document.getElementById("toast");
+
+let collapseStates = Array.from({ length: audioList.length }, () => false);
+const cardElements = [];
+
+// Helpers
+function showToast(message) {
+  toast.textContent = message;
+  toast.style.opacity = "1";
+  setTimeout(() => (toast.style.opacity = "0"), 3000);
+}
+
+function updateCardsVisibility() {
+  const selectedValue = audioSelect.value;
+  cardElements.forEach((card, i) => {
+    const segListTitle = card.querySelector(".list-title");
+    const collapseContent = card.querySelector(".collapse-content");
+    if (selectedValue === "all" || parseInt(selectedValue, 10) === i) {
+      card.style.display = "flex";
+      requestAnimationFrame(() => {
+        card.style.opacity = "1";
+        card.style.transform = "scale(1)";
+      });
+      if (collapseStates[i]) {
+        segListTitle.classList.add("expanded");
+        collapseContent.classList.add("show");
+      } else {
+        segListTitle.classList.remove("expanded");
+        collapseContent.classList.remove("show");
+      }
+    } else {
+      card.style.opacity = "0";
+      card.style.transform = "scale(0.98)";
+      setTimeout(() => {
+        if (!(audioSelect.value === "all" || parseInt(audioSelect.value, 10) === i))
+          card.style.display = "none";
+      }, 260);
+    }
+  });
+}
+
+// Build cards
+audioList.forEach((item, index) => {
+  const card = document.createElement("div");
+  card.className = "audio-card";
+
+  const title = document.createElement("div");
+  title.className = "card-title";
+  title.textContent = item.name;
+
+  const audio = document.createElement("audio");
+  audio.controls = true;
+  const src = document.createElement("source");
+  src.src = item.url;
+  src.type = "audio/mpeg";
+  audio.appendChild(src);
+
+  const progressContainer = document.createElement("div");
+  progressContainer.className = "segment-progress";
+  const progressBar = document.createElement("div");
+  progressBar.className = "bar";
+  progressContainer.appendChild(progressBar);
+
+  const timeLabel = document.createElement("div");
+  timeLabel.className = "time-label";
+
+  // Speed controls
+  const speedGroup = document.createElement("div");
+  speedGroup.className = "control-group";
+  const speedLabel = document.createElement("label");
+  speedLabel.textContent = "Speed:";
+  const speedSelect = document.createElement("select");
+  ["0.5","0.6","0.7","0.8","0.9","1"].forEach(sp=>{
+    const opt=document.createElement("option");
+    opt.value=sp; opt.textContent=`${sp}x`;
+    if(sp==="0.7") opt.selected=true;
+    speedSelect.appendChild(opt);
+  });
+  speedSelect.addEventListener("change", ()=> audio.playbackRate = parseFloat(speedSelect.value));
+  speedGroup.append(speedLabel, speedSelect);
+
+  // Pause/segment controls
+  const pauseGroup = document.createElement("div");
+  pauseGroup.className = "control-group";
+  const saveSegBtn = document.createElement("button");
+  saveSegBtn.textContent = "💾 Save Segment Pt";
+  const rewindBtn = document.createElement("button");
+  rewindBtn.textContent = "⏪ Rewind";
+  rewindBtn.className = "btn-rewind";
+  rewindBtn.disabled = true;
+  const uploadBtn = document.createElement("button");
+  uploadBtn.textContent = "⬆️ Upload Segments";
+  const fileInput = document.createElement("input");
+  fileInput.type = "file"; fileInput.accept = ".json"; fileInput.style.display = "none";
+  const downloadBtn = document.createElement("button");
+  downloadBtn.textContent = "⬇️ Download Segments";
+  pauseGroup.append(saveSegBtn, uploadBtn, downloadBtn, fileInput);
+
+  // Segment list
+  const segListTitle = document.createElement("div");
+  segListTitle.className = "list-title";
+  segListTitle.textContent = "Segment Pause Points:";
+  segListTitle.style.display = "none";
+  const collapseContent = document.createElement("div");
+  collapseContent.className = "collapse-content";
+  const segList = document.createElement("ul");
+  segList.className = "pause-list";
+  collapseContent.append(segList);
+
+  const startSelect = document.createElement("select");
+  const endSelect = document.createElement("select");
+  startSelect.innerHTML = "<option value=''>Start</option>";
+  endSelect.innerHTML = "<option value=''>End</option>";
+
+  const segmentPoints = [];
+  if (Array.isArray(item.defaultSegments)) segmentPoints.push(...item.defaultSegments);
+
+  function updateSegList(){
+    segList.innerHTML = "";
+    segListTitle.style.display = segmentPoints.length ? "block" : "none";
+    segmentPoints.sort((a,b)=>a-b);
+    startSelect.innerHTML = "<option value=''>Start</option>";
+    endSelect.innerHTML = "<option value=''>End</option>";
+    segmentPoints.forEach((pt,i)=>{
+      const li = document.createElement("li");
+      li.textContent = `${pt.toFixed(2)}s`;
+      const del = document.createElement("button");
+      del.textContent = "❌";
+      del.addEventListener("click", ()=>{ segmentPoints.splice(i,1); updateSegList(); });
+      li.appendChild(del);
+      segList.appendChild(li);
+      const sOpt = document.createElement("option");
+      sOpt.value = pt; sOpt.textContent = `${pt.toFixed(2)}s`; startSelect.appendChild(sOpt);
+      const eOpt = document.createElement("option");
+      eOpt.value = pt; eOpt.textContent = `${pt.toFixed(2)}s`; endSelect.appendChild(eOpt);
+    });
+  }
+  updateSegList();
+
+  // Segment state (per card)
+  const segmentState = {
+    active: false,
+    start: 0,
+    end: 0,
+    monitorId: null,
+    pauseHistory: [],       // confirmed rewind checkpoints
+    candidatePause: null,   // last pause point waiting for validation upon next pause
+    lastPlayAudioTime: null // time when audio last started/resumed
+  };
+
+  // Monitoring: single interval guard to prevent flicker/duplication
+  function startSegmentMonitoring() {
+    if (segmentState.monitorId !== null) return; // already running
+    const dur = segmentState.end - segmentState.start;
+    segmentState.monitorId = setInterval(() => {
+      const cur = audio.currentTime;
+      if (cur >= segmentState.end) {
+        audio.pause();
+        audio.currentTime = segmentState.end;
+        stopSegmentMonitoring();
+        return;
+      }
+      const pct = ((cur - segmentState.start) / dur) * 100;
+      progressBar.style.width = `${Math.max(0, Math.min(pct, 100))}%`;
+      timeLabel.textContent = `${cur.toFixed(1)}s / ${segmentState.end.toFixed(1)}s`;
+    }, 100);
+  }
+
+  function stopSegmentMonitoring() {
+    if (segmentState.monitorId !== null) {
+      clearInterval(segmentState.monitorId);
+      segmentState.monitorId = null;
+    }
+    segmentState.active = false;
+    progressBar.style.width = "0%";
+    timeLabel.classList.remove("visible");
+    progressContainer.style.display = "none";
+    pauseSegBtn.textContent = "▶️ Play Next Segment";
+  }
+
+  // Segment controls
+  const segmentGroup = document.createElement("div");
+  segmentGroup.className = "segment-group";
+  const playBtn = document.createElement("button");
+  playBtn.textContent = "▶️ Play Segment";
+  const pauseSegBtn = document.createElement("button");
+  pauseSegBtn.textContent = "▶️ Continue";
+  segmentGroup.append(startSelect, endSelect, playBtn, pauseSegBtn, rewindBtn);
+
+  // Event handlers
+
+  // Save/Delete segment points
+  saveSegBtn.onclick = ()=> { segmentPoints.push(audio.currentTime); updateSegList(); };
+
+  uploadBtn.onclick = ()=> fileInput.click();
+  fileInput.onchange = e=>{
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev=>{
+      try {
+        const arr = JSON.parse(ev.target.result);
+        if (Array.isArray(arr)) {
+          segmentPoints.length = 0;
+          segmentPoints.push(...arr.map(Number));
+          updateSegList();
+          showToast("✅ Segment pause points uploaded.");
+        } else showToast("⚠️ Invalid format.");
+      } catch { showToast("❌ Failed to parse JSON."); }
+    };
+    r.readAsText(f);
+  };
+
+  downloadBtn.onclick = ()=>{
+    const blob = new Blob([JSON.stringify(segmentPoints,null,2)],{type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${item.name}-segment-points.json`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
+
+  // Auto-adjust start/end select ordering
+  startSelect.addEventListener("change", () => {
+    const startVal = parseFloat(startSelect.value);
+    const endVal = parseFloat(endSelect.value);
+    if (!isNaN(startVal) && !isNaN(endVal) && endVal <= startVal) {
+      const nextHigher = segmentPoints.find(pt => pt > startVal);
+      endSelect.value = nextHigher !== undefined ? String(nextHigher) : "";
+    }
+  });
+
+  endSelect.addEventListener("change", () => {
+    const startVal = parseFloat(startSelect.value);
+    const endVal = parseFloat(endSelect.value);
+    if (!isNaN(startVal) && !isNaN(endVal) && endVal <= startVal) {
+      const reversed = [...segmentPoints].reverse();
+      const prevLower = reversed.find(pt => pt < endVal);
+      startSelect.value = prevLower !== undefined ? String(prevLower) : "";
+    }
+  });
+
+  // Play next defined segment convenience
+  function playNextDefinedSegment() {
+    // require at least one defined segment
+    if (!segmentPoints.length) { 
+      showToast("⚠️ No segment points defined."); 
+      return; 
+    }
+
+    segmentPoints.sort((a,b)=>a-b);
+
+    let startPt, endPt;
+
+    if (segmentState.end < audio.duration) {
+      // Already in a segment and not at the end of audio
+      startPt = segmentState.end;
+
+      // Find the next defined segment point strictly greater than current end
+      const nextIdx = segmentPoints.findIndex(pt => pt > segmentState.end);
+      if (nextIdx !== -1) {
+        endPt = segmentPoints[nextIdx];
+      } else {
+        // No more defined points, use audio end
+        endPt = audio.duration;
+      }
+    } else {
+      // Fresh start: behave as before
+      const ref = startSelect.value ? parseFloat(startSelect.value) : (audio.currentTime || 0);
+      let nextIdx = segmentPoints.findIndex(pt => pt > ref);
+      if (nextIdx === -1) nextIdx = 0;
+
+      endPt = segmentPoints[nextIdx];
+      startPt = nextIdx > 0 ? segmentPoints[nextIdx - 1] : 0;
+    }
+
+    // Update selects
+    startSelect.value = startPt ? String(startPt) : "";
+    endSelect.value = String(endPt);
+
+    // Trigger the existing play logic
+    playBtn.click();
+  }
+
+  // Pause/Continue button
+  pauseSegBtn.addEventListener("click", () => {
+    if (!segmentState.active) {
+      playNextDefinedSegment();
+      return;
+    }
+    if (!audio.paused) {
+      audio.pause();
+      pauseSegBtn.textContent = "▶️ Continue";
+    } else {
+      segmentState.lastPlayAudioTime = audio.currentTime;
+      audio.play();
+      pauseSegBtn.textContent = "⏸ Pause";
+      // monitoring already running after playBtn; ensure it exists
+      startSegmentMonitoring();
+    }
+  });
+
+  // Audio pause: confirm previous candidate and set new candidate
+  audio.addEventListener("pause", () => {
+    const lastPlayAt = segmentState.lastPlayAudioTime;
+    const nowAudioAt = audio.currentTime;
+    let listened = 0;
+    if (typeof lastPlayAt === "number" && !isNaN(lastPlayAt)) {
+      listened = Math.max(0, nowAudioAt - lastPlayAt);
+    }
+
+    // Validate the previous candidate (checkpoint) if we listened long enough since last resume
+    if (listened >= MIN_PLAY_DURATION_IN_SEC && segmentState.candidatePause !== null) {
+      // Confirm previous candidate as a valid rewind point
+      const lastConfirmed = segmentState.pauseHistory.length ? segmentState.pauseHistory[segmentState.pauseHistory.length - 1] : null;
+      if (lastConfirmed === null || Math.abs(lastConfirmed - segmentState.candidatePause) >= 0.05) {
+        segmentState.pauseHistory.push(segmentState.candidatePause);
+        if (segmentState.pauseHistory.length > 100) segmentState.pauseHistory.shift();
+      }
+    }
+
+    // Set current pause as new candidate (unconfirmed until next valid pause/continue)
+    segmentState.candidatePause = nowAudioAt;
+
+    pauseSegBtn.textContent = segmentState.active ? "▶️ Continue" : "▶️ Play Next Segment";
+    rewindBtn.disabled = !(segmentState.active || segmentState.pauseHistory.length > 0);
+  });
+
+  // Audio play: start/resume listening window
+  audio.addEventListener("play", () => {
+    segmentState.lastPlayAudioTime = audio.currentTime;
+    pauseSegBtn.textContent = segmentState.active ? "⏸ Pause" : "▶️ Play Next Segment";
+    rewindBtn.disabled = !(segmentState.active || segmentState.pauseHistory.length > 0);
+    // ensure monitor is running when in active segment
+    if (segmentState.active) startSegmentMonitoring();
+  });
+
+  // Play segment button
+  playBtn.addEventListener("click", async () => {
+    // Starting a new segment resets history and monitoring
+    segmentState.pauseHistory.length = 0;
+    segmentState.candidatePause = null;
+    rewindBtn.disabled = true;
+
+    stopSegmentMonitoring(); // ensures clean start
+
+    const start = startSelect.value ? parseFloat(startSelect.value) : 0;
+    const end = endSelect.value ? parseFloat(endSelect.value) : audio.duration;
+    if (isNaN(start) || isNaN(end) || start >= end) { showToast("⚠️ Invalid segment."); return; }
+
+    segmentState.start = start;
+    segmentState.end = end;
+    segmentState.active = true;
+
+    progressContainer.style.display = "block";
+    progressBar.style.width = "0%";
+    timeLabel.textContent = `${start.toFixed(1)}s / ${end.toFixed(1)}s`;
+    timeLabel.classList.add("visible");
+    pauseSegBtn.textContent = "⏸ Pause";
+
+    try {
+      audio.currentTime = start;
+      await new Promise(r => setTimeout(r, 80));
+      await audio.play();
+    } catch (err) {
+      showToast("❌ Unable to play segment.");
+      stopSegmentMonitoring();
+      return;
+    }
+
+    segmentState.lastPlayAudioTime = audio.currentTime;
+
+    // Start monitoring once
+    startSegmentMonitoring();
+  });
+
+  // Rewind: jump to last confirmed pause, otherwise segment start
+  rewindBtn.onclick = () => {
+    const history = segmentState.pauseHistory;
+    if (!segmentState.active && history.length === 0) {
+      alert("No previous section to rewind to yet.");
+      return;
+    }
+
+    // Decide chosenTime based on whether the last action was a pause
+    let chosenTime = null;
+
+    if (history.length === 0) {
+      chosenTime = segmentState.start;   // fallback to segment start
+    } else if (history.length >= 2) {
+      const last = history[history.length - 1];
+      const prev = history[history.length - 2];
+
+      // If audio is currently paused AND we're sitting at the last pause point,
+      // then step back to the previous pause point
+      if (audio.paused && Math.abs(audio.currentTime - last) < 0.12) {
+        chosenTime = prev !== undefined ? prev : segmentState.start;
+      } else {
+        // Otherwise, go to the last pause point
+        chosenTime = last;
+      }
+    } else {
+      // Only one pause in history
+      chosenTime = history[0];
+    }
+	
+    const inSegment = chosenTime >= segmentState.start && chosenTime <= segmentState.end;
+
+    if (!inSegment) {
+      // Outside segment -> stop monitoring and treat as normal playback
+      stopSegmentMonitoring();
+    }
+
+    audio.currentTime = chosenTime;
+    audio.play();
+
+    if (segmentState.active && inSegment) {
+      // Restore UI if inside segment
+      progressContainer.style.display = "block";
+      timeLabel.classList.add("visible");
+      pauseSegBtn.textContent = "⏸ Pause";
+
+      // Initialize progress bar to the current position within segment
+      const dur = segmentState.end - segmentState.start;
+      const clamped = Math.max(segmentState.start, Math.min(chosenTime, segmentState.end));
+      const initialPct = dur > 0 ? ((clamped - segmentState.start) / dur) * 100 : 0;
+      progressBar.style.width = `${Math.max(0, Math.min(initialPct, 100))}%`;
+      timeLabel.textContent = `${clamped.toFixed(1)}s / ${segmentState.end.toFixed(1)}s`;
+
+      startSegmentMonitoring(); // guard prevents duplicate intervals
+    } else {
+      progressBar.style.width = "0%";
+      timeLabel.classList.remove("visible");
+      progressContainer.style.display = "none";
+      pauseSegBtn.textContent = "▶️ Play Next Segment";
+    }
+
+    rewindBtn.disabled = !(segmentState.active || history.length > 0);
+  };
+
+  // Collapse toggle
+  segListTitle.addEventListener("click", ()=>{
+    segListTitle.classList.toggle("expanded");
+    collapseContent.classList.toggle("show");
+    collapseStates[index] = collapseContent.classList.contains("show");
+  });
+
+  // Assemble card
+  card.append(title, audio, progressContainer, timeLabel, speedGroup, pauseGroup, segListTitle, collapseContent, segmentGroup);
+  container.appendChild(card);
+  cardElements.push(card);
+
+  // Populate select option
+  const opt = document.createElement("option");
+  opt.value = index; opt.textContent = item.name;
+  audioSelect.appendChild(opt);
+  
+  // Text toggle button and container
+  const toggleTextBtn = document.createElement("button");
+  toggleTextBtn.textContent = "📖 Show Audio Text";
+  toggleTextBtn.style.marginTop = "10px";
+
+  const textContainer = document.createElement("div");
+  textContainer.style.display = "none";
+  textContainer.style.marginTop = "10px";
+  textContainer.style.background = "#fff";
+  textContainer.style.padding = "12px";
+  textContainer.style.borderRadius = "8px";
+  textContainer.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+  textContainer.style.lineHeight = "1.6";
+  textContainer.innerHTML = item.text || "No text available.";
+
+  toggleTextBtn.onclick = () => {
+    const isVisible = textContainer.style.display === "block";
+    textContainer.style.display = isVisible ? "none" : "block";
+    toggleTextBtn.textContent = isVisible ? "📖 Show Audio Text" : "🙈 Hide Audio Text";
+  };
+
+  // Add to card
+  card.appendChild(toggleTextBtn);
+  card.appendChild(textContainer);
+});
+
+// Default view: last item if any, else show all
+if (audioList.length > 0) {
+  const lastIndex = audioList.length - 1;
+  audioSelect.value = String(lastIndex);
+} else {
+  audioSelect.value = "all";
+}
+updateCardsVisibility();
+
+// Global select change
+audioSelect.addEventListener("change", updateCardsVisibility);
+</script>
+
+</body>
+</html>
