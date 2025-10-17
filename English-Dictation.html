@@ -85,14 +85,24 @@
 
 <script>
 const audioList = [
-  { name: "The Horse and The Bell", url: "mp3LessonText/The-Horse-And-The-Bell-Dictation.mp3", defaultSegments: [13.3, 27.8, 43.3, 53.6, 65.5],
+  { name: "The Horse and The Bell", url: "mp3LessonText/The-Horse-And-The-Bell-Dictation.mp3", defaultSegments: [34.4, 76.6],
     text: `
-    <p>A good king ruled over a town in Italy. He would not allow anyone to be cruel or unfair. In the marketplace stood a tall tower with a bell. If someone suffered a cruel thing, they could ring the bell.</p>
-    <p>For many years, no one rang it. Children and sick people were cared for. Then a soldier struck his old horse and sent him away down the dusty road. The horse wandered, feeding from hedges by the roadside.</p>
-    <p>In wintertime, snow covered the ground. He grew thinner, and his mane became ragged. In spring, people were glad and tied flowers to their doorways. They held a feast in the sunshine in the marketplace to welcome the spring.</p>
-    <p>The starving horse limped up to the bell tower and went underneath the arch. He tugged at the leaves tied to the bell rope. Ding-dong! Everyone gasped.</p>
-    <p>The king found the miserable horse and was shocked. He looked sternly at the soldier, who admitted he had been unkind and that he still owned the horse. The king gave him a second chance.</p>
-    <p>The soldier took the horse home, fed him well, and gave him a warm stable for the rest of his days. He showed everyone that he had truly mended his ways.</p>
+    <p>Many years ago, a good king ruled over his kingdom in Italy. He set a rule that no one should be cruel or unfair.
+    In the middle of the town, beside the marketplace, stood a tall tower with a bell underneath the arch.
+    If someone had been treated badly, they could ring the bell and the king would come to listen and judge.</p>
+    <p>For many years, no one rang it.  Children and sick people were cared for. Then one day, a soldier decided that
+    his old horse was no longer useful.  He struck the horse and sent him away down the dusty roadside.</p>
+    <p>The horse began to wander about, feeding on grass and leaves from the hedges. In wintertime, snow covered the ground.
+    The poor horse grew thin and weak in the cold weather. His mane looked ragged. He was soon nothing but skin and bone,
+    tired and miserable.</p>
+    <p>When winter ended, the people were glad. They spread tables in the sunshine for a feast.
+    They tied flowers and leaves to their doorways and to the bell rope to welcome spring.</p>
+    <p>The starving horse limped up to the tower. He began to eat the leaves on the rope. As he tugged at it,
+    the bell rang — Ding-dong! Everyone gasped, and the king rose to see what had happened.</p>
+    <p>The king saw the poor horse and was shocked. He looked sternly at the soldier who owned the horse.
+    The soldier was afraid, fell on his knees, and admitted he had been unkind.  He felt sorry and asked for another chance.</p>
+    <p>The king forgave him and told him to show everyone that he would truly mend his ways and take care of the animal.
+    So the soldier took the horse home, gave him food and water, and kept him in a warm stable for the rest of his days.</p>
     `
  },
 ];
@@ -175,7 +185,7 @@ audioList.forEach((item, index) => {
   ["0.5","0.6","0.7","0.8","0.9","1"].forEach(sp=>{
     const opt=document.createElement("option");
     opt.value=sp; opt.textContent=`${sp}x`;
-    if(sp==="0.7") opt.selected=true;
+    if(sp==="0.6") opt.selected=true;
     speedSelect.appendChild(opt);
   });
   speedSelect.addEventListener("change", ()=> audio.playbackRate = parseFloat(speedSelect.value));
@@ -370,7 +380,7 @@ audioList.forEach((item, index) => {
       if (nextIdx === -1) nextIdx = 0;
 
       endPt = segmentPoints[nextIdx];
-      startPt = nextIdx > 0 ? segmentPoints[nextIdx - 1] : 0;
+      startPt = nextIdx > 0 ? Math.max(segmentPoints[nextIdx - 1]-0.125,0) : 0;
     }
 
     // Update selects
